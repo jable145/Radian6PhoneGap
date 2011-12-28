@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html>
+ <head>
+     
+  <link rel="stylesheet" type="text/css" href="my-coke.css" />
+  <link rel="stylesheet" type="text/css" href="js/examples.css" />
+  <!--[if lt IE 9]><script language="javascript" type="text/javascript" src="../excanvas.js"></script><![endif]-->
+    <link rel="stylesheet" type="text/css" href="js/jquery.jqplot.min.css" />
+    <link rel="stylesheet" type="text/css" href="js/jquery-ui-1.8.16.custom.css" />
+    <script src="js/jquery.min.js" type="text/javascript"></script>
+    <script language="javascript" type="text/javascript" src="js/jquery.jqplot.js"></script>
+    <script src="js/jquery-ui-1.8.16.custom.min.js" type="text/javascript"></script>
+
+    <script language="javascript" type="text/javascript" src="js/plugins/jqplot.canvasTextRenderer.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/plugins/jqplot.canvasAxisTickRenderer.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/plugins/jqplot.canvasAxisLabelRenderer.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/plugins/jqplot.highlighter.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/plugins/jqplot.canvasOverlay.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/plugins/jqplot.cursor.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/plugins/jqplot.pointLabels.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/plugins/jqplot.pieRenderer.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/plugins/jqplot.barRenderer.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/plugins/jqplot.dateAxisRenderer.min.js"></script>
+    <script language="javascript" type="text/javascript" src="js/plugins/jqplot.categoryAxisRenderer.min.js"></script>
+    <script type="text/javascript" charset="utf-8" src="my-radian6.js"></script>
+
+    <script type="text/javascript">
+		var topic_list;
+		function doInit() {
+			// Clear the existing Topics
+			var select_box = document.getElementById("topic_id");
+			var select_box_comp = document.getElementById("topic_id_comp");
+			var num = select_box.options.length;
+			for (var i=0; i<num; i++) {
+				select_box.options.remove(0);
+			}
+			num = select_box_comp.options.length;
+			for (var i=0; i<num; i++) {
+				select_box_comp.options.remove(0);
+			}
+			
+			
+			// Get the topics to load into the drop down list
+			var req = new XMLHttpRequest();
+			//req.onreadystatechange = processReqChange;
+			try {
+				req.open("GET", "topics", false); // do it synchronously
+				req.send();
+			} catch (ex) {
+				doAlternatePage();
+				return;
+			}
+			var xmlDoc = req.responseXML;
+			//
+			if (xmlDoc == null) {
+				doAlternatePage(req);
+				return;
+			}
+			//
+			topic_list = new TopicList();
+			topic_list.loadFromXml(xmlDoc);
+			
+			// Populate drop down box
+			for (var i=0; i<topic_list.topics.length; i++) {
+				var topic = topic_list.topics[i];
+				var select_option = document.createElement("option");
+				select_option.text = topic.name;
+				select_option.value = topic.id;
+				select_box.add(select_option, null);
+				//
+				var select_option_comp = document.createElement("option");
+				select_option_comp.text = topic.name;
+				select_option_comp.value = topic.id;
+				select_box_comp.add(select_option_comp, null);
+			}
+			
+			// Set the default topics
+			if (select_box.options.length > 0) {
+				// select first topic
+				select_box.options[0].selected = true;
+			}
+			if (select_box_comp.options.length > 1) {
+				// select second topic
+				select_box_comp.options[1].selected = true;
+			}
+			
+			// Populate default dates
+			var the_date = new Date(); // Current Date
+			the_date.setDate(the_date.getDate() - 1);
+			var mm = the_date.getMonth() + 1;
+			var dd = the_date.getDate();
+			var yyyy = the_date.getFullYear();
+			var date_box = document.getElementById("enddatepicker");
+			date_box.value = mm + "/" + dd + "/" + yyyy;
+			the_date.setDate(the_date.getDate() - 13);
+			mm = the_date.getMonth() + 1;
+			dd = the_date.getDate();
+			yyyy = the_date.getFullYear();
+			date_box = document.getElementById("startdatepicker");
+			date_box.value = mm + "/" + dd + "/" + yyyy;
+			
+			//doGet();
+
+		}
+		
+		// On error, find another page to go to
+		// Most likely caused by a redirect triggered by a session timeout, or some exception
+		function doAlternatePage(xhr) {
+			if (xhr == null) {
+				window.location = "index.html";
+			} else {
+				if (xhr.responseText != null) {
+					document.write(xhr.responseText);
+				} else {
+					window.location = "index.html";
+				}
+			}
+		}
+	</script>
+	<!-- The following scripts do the request to the server to get Radian6 timeseries data	-->
+    <script type="text/javascript">
+	
+		function doGet() {
+			var charts = doCharts();
+			//doPosts();
+			if (charts) doTwitter();
+		}
+		
+		function doCharts() {
+			//
+			// We need to do two requests to get Brand and Competitor data
+			// Currently the Radian6 API doesn't give us what we want in one request
+			//
+			var params = doGetChartInput('topic_id'); // Brand topic_id
+			if (params == null) {
+				return false;
+			}
+			var req = new XMLHttpRequest();
+			// Do the Brand request synchronously
+			//req.onreadystatechange = processReqChange;
+			try {
+				req.open("GET", "data/timeseriesdata/" + params, false);
+				req.send();								
+			} catch(ex) {
+				//oops probably some network error
+				// let's try to get out of here
+				doAlternatePage();
+				return false;
+			}
+			if (req.status == 200) {
+				if (req.responseXML == null) {
+					doAlternatePage(req);
+					return false;
+				}
+				doBrandChart(req.responseXML);
+			} else {
+				alert("There was a problem retrieving the XML data:\n" +
+		                + "Status: " + req.status + " Text: " +req.statusText);
+			}
+			
+			// OK now do the Competitor request
+			params = doGetChartInput('topic_id_comp'); // Competitor topic_id
+			var req2 = new XMLHttpRequest();
+			// Do the request synchronously
+			//req.onreadystatechange = processReqChange;
+			try {
+				req2.open("GET", "data/timeseriesdata/" + params, false);
+				req2.send();
+			} catch (ex) {
+				doAlternatePage();
+				return false;
+			}
+			
+			if (req2.status == 200) {
+				if (req2.responseXML == null) {
+					doAlternatePage(req2);
+					return false;
+				}
+				doCompChart(req.responseXML, req2.responseXML);
+			} else {
+				alert("There was a problem retrieving the XML data:\n" +
+		                + "Status: " + req2.status + " Text: " +req2.statusText);
+			}
+			return true;
+		}
+		
+		function doTwitter() {
+			var topic_id = doTopic('topic_id');
+			for (var i=0; i<topic_list.topics.length; i++) {
+				if (topic_id == topic_list.topics[i].id) {
+					doTwitterWidget(topic_list.topics[i].query);
+					break;
+				}
+			}
+		}
+
+		// Not used
+		function doPosts() {
+			// Get posts for the media types selected
+			var params = doGetPostsInput('topic_id');
+			if (params == null) {
+				return;
+			}
+			var req = new XMLHttpRequest();
+			req.open("GET", "data/topicdata/range/" + params, false)
+			req.send();
+			if (req.status == 200) {
+				doPostList(req.responseXML);
+			} else {
+				alert("There was a problem retrieving the XML data:\n" +
+		                + "Status: " + req.status + " Text: " +req.statusText);
+			}
+		}
+		
+		// Used to handle asynchronous request handling
+		function processReqChange() {
+		    if (req.readyState == 4) {
+		        if (req.status == 200) {
+					if (req.responseXML == null) {
+						doAlternatePage(req);
+						return;
+					}
+					doBrandChart(req.responseXML);
+		        } else {
+		            alert("There was a problem retrieving the XML data:\n" +
+		                + "Status: " + req.status + " Text: " +req.statusText);
+		        }
+		    }
+		}
+
+		function doPostList(xmlDoc) {
+			var article_list = new ArticleList();
+			article_list.loadFromXml(xmlDoc);
+			articles = article_list.articles;
+			post_list = document.getElementById('post_text');
+			for (var i=0; i<articles.length; i++) {
+				//post_list.innerHTML += "<br>" + articles[i].article_url;
+				post_list.value += articles[i].host + '\n';
+			}
+			
+		}
+		
+		function doBrandChart(xmlDoc) {
+			var trends = new TopicTrends();
+			trends.loadFromXml(xmlDoc);
+			var data = trends.data; // Array of Datum
+			var data_series_object = new Object();
+			for (var i=0; i<data.length; i++) {
+				var key = data[i].name;
+				if (data_series_object[key] == null) {
+					data_series_object[key] = [];
+				}
+				data_series_object[key].push([ parseInt(data[i].label), parseInt(data[i].value) ] );
+			}
+			doLineGraph(data_series_object, 'chart1', getBrandName());
+		}
+		
+		// We're expecting exactly two dataseries
+		function doCompChart(xmlDoc, xmlDocComp) {
+			var trends = new TopicTrends();
+			trends.loadFromXml(xmlDoc);
+			var data = trends.data; // Array of Datum
+			var data_series_object = new Object();
+			accum_keys = [];
+			accum_map = new Object();
+			
+			// Loop thru the data series and group them by label (e.g. date)
+			for (var i=0; i<data.length; i++) {
+				var key = data[i].label;
+				if (accum_map[key] == null) {
+					accum_map[key] = 0;
+					accum_keys.push(key);
+				}
+				accum_map[key] += parseInt(data[i].value);
+			}		
+			// Now go back thru the re-grouped data into a single data series
+			data_series_object[getBrandName()] = [];
+			for (var i=0; i<accum_keys.length; i++) {
+				var lab = parseInt(accum_keys[i]);
+				var val = parseInt(accum_map[accum_keys[i]]);
+				data_series_object[getBrandName()].push([lab, val]);
+			}
+
+			var trends_comp = new TopicTrends();
+			trends_comp.loadFromXml(xmlDocComp);
+			data = trends_comp.data; // Array of Datum
+			accum_keys = [];
+			accum_map = new Object();
+			
+			// Loop thru the data series and group them by label (e.g. date)
+			for (var i=0; i<data.length; i++) {
+				var key = data[i].label;
+				if (accum_map[key] == null) {
+					accum_map[key] = 0;
+					accum_keys.push(key);
+				}
+				accum_map[key] += parseInt(data[i].value);
+			}		
+			
+			// Now go back thru the re-grouped data into a single data series
+			data_series_object[getCompetitorName()] = [];
+			for (var i=0; i<accum_keys.length; i++) {
+				var lab = parseInt(accum_keys[i]);
+				var val = parseInt(accum_map[accum_keys[i]]);
+				data_series_object[getCompetitorName()].push([lab, val]);
+			}
+			
+			var brand_name = getBrandName();
+			var competitor_name = getCompetitorName();
+			doLineGraph(data_series_object, 'chart2', brand_name + " vs " + competitor_name);
+		}
+		
+	</script>
+
+	<!-- The following scripts handle the graph rendering -->
+    <script type="text/javascript">
+
+		// data_series_object is a map of array of int[2] e.g.
+		// "Brand"      => [ [date_1, value_1], [date_2, value_2], [date_3, value_3], [date_n, value_n] ]
+		// "Competitor" => [ [date_1, value_1], [date_2, value_2], [date_3, value_3], [date_n, value_n] ]
+		function doLineGraph(data_series_object, chart, chart_title) {
+
+			var data_series_names = [];
+			var data_series = [];
+			for (var key in data_series_object) {
+				data_series_names.push(key);
+				data_series.push(data_series_object[key]);
+			}
+
+			$(chart).empty();
+
+            var line = $.jqplot(chart, data_series, {
+                title: chart_title,
+                cursor: { show: true },
+                highlighter: { show: true },
+                seriesDefaults: { pointLabels: { show: false }},
+                axesDefaults: {
+                    labelRenderer: $.jqplot.CanvasAxisLabelRenderer,
+                    labelOptions: {
+                        fontSize: '12pt'
+                    }
+                },
+				legend: {
+					renderder: $.jqplot.EnhancedLegendRenderer,
+					show: true,
+					labels: data_series_names,
+					rendererOptions:{numberRows: 1},
+					placement: 'outsideGrid',
+					location: 'ne'
+				},
+				grid: {
+					background: '#FFFFFF'
+				},
+                axes: {
+                    xaxis: {
+                        //label: 'Date',
+                        renderer: $.jqplot.DateAxisRenderer,
+                        //min: '10/18/2011',
+                        tickInterval: '3 days',
+                        tickOptions: { formatString: '%b %#d' }
+                    },
+                    yaxis: {
+                        //label: 'Number Of Posts'
+                    }
+                }
+            }).replot();
+            
+			
+		}
+
+
+    </script>
+    <script type="text/javascript">
+
+		function doGetChartInput(topic_id) {
+			// Get Topic
+			var topic_id = doTopic(topic_id);
+			// Get Start Date
+			var start_date = doStartDate()
+			// Get End Date
+			var end_date = doEndDate()
+			// Get Media Types
+			var media_types = doMediaTypes();
+			// Get Segmentaion
+			var segmentation = doSegmentation();
+			// Do some simple validations
+			if (!doValidate(topic_id, start_date, end_date, media_types, segmentation)) {
+				return null;
+			}
+			// Create request string
+			var result = start_date + "/" + end_date + "/" + topic_id + "/";
+			for (var i=0; i<media_types.length; i++) {
+				if (i>0) {
+					result += ",";
+				}
+				result += media_types[i];
+			}
+			result += "/" + segmentation;
+			return result;
+		}
+		function doTopic(topic_id) {
+			var topic = document.getElementById(topic_id);
+			return topic.options[topic.selectedIndex].value;
+		}
+		function doStartDate() {
+			var date_input = document.getElementById("startdatepicker");
+			var date = new Date(date_input.value);
+			var millis = date.getTime();
+			return millis;
+		}
+		function doEndDate() {
+			var date_input = document.getElementById("enddatepicker");
+			var date = new Date(date_input.value);
+			var millis = date.getTime();
+			return millis;
+		}
+		function doMediaTypes() {
+			var result = [];
+			var media_types = document.getElementsByName("media_types");
+			for (var i=0; i<media_types.length; i++) {
+				if (media_types[i].checked) {
+					result.push(media_types[i].value);
+				}
+			}	
+			return result;					
+		}
+		function doSegmentation() {
+			var seg = document.getElementById("segmentation");
+			return seg.options[seg.selectedIndex].value;
+			
+			//var seg_options = document.getElementsByName("segmentation");
+			//for (var i=0; i<seg_options.length; i++) {
+			//	if (seg_options[i].checked) {
+			//		return seg_options[i].value;
+			//	}
+			//}			
+		}
+		function doValidate(topic_id, start_date, end_date, media_types, segmentation) {
+			if (isNaN(topic_id)) {
+				alert("No Topic Selected");
+				return false;
+			}
+			if (isNaN(start_date)) {
+				alert("No Start Date Selected");
+				return false;
+			}
+			if (isNaN(end_date)) {
+				alert("No End Date Selected");
+				return false;
+			}
+			if (end_date <= start_date) {
+				alert("End Date must be > Start Date");
+				return false;
+			}
+			if (media_types.length < 1) {
+				alert("No Media Types Selected");
+				return false;
+			}
+			if (isNaN(segmentation)) {
+				alert("No Segmentation Selected");
+				return false;
+			}
+			return true;
+		}
+		
+		function getBrandName() {
+			var topic = document.getElementById("topic_id");
+			return topic.options[topic.selectedIndex].text;
+		}
+		
+		function getCompetitorName() {
+			var topic = document.getElementById("topic_id_comp");
+			return topic.options[topic.selectedIndex].text;
+		}
+		
+		function doGetPostsInput(topic_id) {
+			// Get Topic
+			var topic_id = doTopic(topic_id);
+			// Get Start Date
+			var start_date = doStartDate()
+			// Get End Date
+			var end_date = doEndDate()
+			// Get Media Types
+			var media_types = doMediaTypes();
+			// Do some simple validations
+			if (!doValidate(topic_id, start_date, end_date, media_types, 0)) {
+				return null;
+			}
+			// Create request string
+			var result = start_date + "/" + end_date + "/" + topic_id + "/";
+			for (var i=0; i<media_types.length; i++) {
+				if (i>0) {
+					result += ",";
+				}
+				result += media_types[i];
+			}
+			result += "/1/25";
+			return result;
+		}
+
+    </script>
+	<script type="text/javascript">
+	$(function() {
+		$( "#startdatepicker" ).datepicker( { minDate: -30,
+			                             maxDate: -1,
+										showOn: "button",
+										buttonImage: "images/calendar.gif",
+										defaultDate: -14,
+										buttonImageOnly: true
+			                           });
+	});
+	$(function() {
+		$( "#enddatepicker" ).datepicker( { minDate: -30,
+			                             maxDate: -1,
+										showOn: "button",
+										buttonImage: "images/calendar.gif",
+										showButtonPanel: true,
+										defaultDate: -1,
+										buttonImageOnly: true
+			                           });
+	});
+	</script>
+
+ </head>
+ <body onload="doInit()">
+ 	<div id="social_analytics"><center><h4>Social Analytics</h4></center></div>
+	<div id="my_input_top">
+		<select id="topic_id"></select>
+		<input type="checkbox" name="media_types" value="8" checked="yes" class="bigcheck">Twitter</input>
+		<input type="checkbox" name="media_types" value="12" checked="yes" class="bigcheck">Facebook</input>
+		<input type="checkbox" name="media_types" value="1" checked="yes" class="bigcheck">Blogs</input>
+		<select id="segmentation">
+			<option value="2" selected>Media</option>
+			<option value="0">Region</option>
+			<option value="1">Language</option>
+		</select>
+		<!--
+		<input type="radio" name="segmentation" value="2" checked="yes" class="bigcheck">Media</input>
+		<input type="radio" name="segmentation" value="0" class="bigcheck">Region</input>
+		<input type="radio" name="segmentation" value="1" class="bigcheck">Language</input>
+		-->
+	</div>
+	<div id="my_input_middle">
+		<select id="topic_id_comp"></select>
+	</div>
+	<div id="my_input_bottom">
+		Start Date: <input type="text" id="startdatepicker" size="11" disabled> 
+		End Date  : <input type="text" id="enddatepicker" size="11" disabled>
+		<button id="go_button" value="Go" onclick="doGet()">Go</button>
+	</div>
+
+ 	<div id="chart1"><h4>Brand Chart</h4></div>
+ 	<div id="chart2"><h4>Brand vs Competitor</h4></div>
+ 	
+ 	<!-- Note that the following Twitter Widget is very fragile, so don't touch.
+ 		Ideally you'd write better code and use the
+ 		id: 'posts1',
+ 		option to insert it into the div but it works inconsistently, so the following is the
+ 		nicest hack available to get the thing to render.
+ 	 -->
+ 	<div id="posts1">
+ 	
+<script src="http://widgets.twimg.com/j/2/widget.js"></script>
+<script>
+var my_twitter = new TWTR.Widget({
+	  version: 2,
+	  type: 'search',
+	  search: 'Radian6',
+	  interval: 10000,
+	  title: 'Recent Posts',
+	  subject: '',
+	  width: 250,
+	  height: 300,
+	  theme: {
+	    shell: {
+	      background: '#ff0000',
+	      color: '#ffffff'
+	    },
+	    tweets: {
+	      background: '#ffffff',
+	      color: '#444444',
+	      links: '#1985b5'
+	    }
+	  },
+	  features: {
+	    scrollbar: true,
+	    loop: true,
+	    live: true,
+	    behavior: 'default'
+	  }
+	}).render();
+
+function doTwitterWidget(query) {
+		my_twitter
+	      .destroy()
+	      .setFeatures({
+	        live: true,
+	        scrollbar: false,
+	        behavior: 'default',
+	        loop: true
+	      })
+	      .setDimensions(250, 300)
+	      .setSearch(query)
+	      .setTweetInterval(10000)
+	      .setTitle('Recent Posts')
+	      .setCaption(query)
+	      .render().start();
+}
+
+function newTwitterSearch() {
+	var new_search = prompt("Enter new Twitter search", "");
+	if (new_search == null || new_search.trim() == "") {
+		return;
+	} else {
+		doTwitterWidget(new_search);	
+	}
+}
+
+</script>
+<br>
+<button id="twitter_query" onclick="newTwitterSearch()" style="float: left; margin-left: 25%; margin:right: 25%;">New Twitter Search</button>
+
+</div>
+
+</body>
+</html>

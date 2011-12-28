@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Issue Adhoc request</title>
+        <script type="text/javascript" charset="utf-8" src="my-radian6.js"></script>
+        <script type="text/javascript">
+			var req;
+			function doGet() {
+				var text_box = document.getElementById("request_str");
+				var proxy_str = text_box.value;
+				req = new XMLHttpRequest();
+				req.onreadystatechange = processReqChange;
+				try {
+					req.open("GET", proxy_str, true);
+					req.send();
+				} catch (ex) {
+					doAlternatePage();
+					return;
+				}
+			}
+			function processReqChange() {
+				//alert("processReqChange: " + " state:" + req.readyState + " status:" + req.status);
+			    // only if req shows "loaded"
+			    if (req.readyState == 4) {
+			        // only if "OK"
+			        if (req.status == 200) {
+						//alert("GOT IT");
+						if (req.responseXML == null) {
+							doAlternatePage(req);
+							return;
+						}
+						doStuff(req.responseXML);
+			        } else {
+			            alert("There was a problem retrieving the XML data:\n" +
+			                + "Status: " + req.status + " Text: " +req.statusText);
+			        }
+			    }
+			}
+			
+			function doStuff(xmlDoc) {
+				var str = (new XMLSerializer()).serializeToString(xmlDoc.documentElement);
+				var mydisplay = document.getElementById("mydisplay");
+				mydisplay.value = str;
+			}
+			
+			// On error, find another page to go to
+			// Most likely caused by a redirect triggered by a session timeout, or some exception
+		function doAlternatePage(xhr) {
+			if (xhr == null) {
+				window.location = "index.html";
+			} else {
+				if (xhr.responseText != null) {
+					document.write(xhr.responseText);
+				} else {
+					window.location = "index.html";
+				}
+			}
+		}
+		</script>
+	</head>
+    <body>
+  <div>
+	Adhoc Request: /<input type="text" id="request_str" size="120"><br>
+	<button type="button" onclick="doGet()">Go</button>
+  </div>
+	<textarea id="mydisplay" cols="120" rows="50"></textarea>
+    </body>
+</html>

@@ -1,0 +1,89 @@
+	div {
+	}
+	#social_analytics {
+	   background: rgb(255,0,0);
+	   position: absolute;
+	   width: 100%;
+	   height: 10%;
+	   margin: 0%;
+	   margin-top: 0%;
+	   color: white;
+	   font-size: 20px;
+	   font-weight: bold;
+	}
+	#my_input_top {
+	   background: rgb(255,0,0);
+	   position: absolute;
+	   width: 70%;
+	   height: 10%;
+	   margin-top: 10%;
+	   margin-left: 0%;
+	   font-size: 16px;
+	   font-weight: bold;
+	   color: white;
+	}
+	#chart1 {
+	   background: rgb(255,0,0);
+	   position: absolute;
+	   width: 70%;
+	   height: 30%;
+	   margin: 0%;
+	   margin-top: 20%;
+	   color: white;
+	}
+	#my_input_middle {
+	   background: rgb(255,0,0);
+	   position: absolute;
+	   width: 70%;
+	   height: 10%;
+	   margin-top: 50%;
+	   margin-left: 0%;
+	   font-size: 16px;
+	   font-weight: bold;
+	   color: white;
+	}
+	#chart2 {
+	   background: rgb(255,0,0);
+	   position: absolute;
+	   width: 70%;
+	   height: 30%;
+	   margin-top: 60%;
+	   margin-left: 0%;		
+	   color: white;
+	}
+	#my_input_bottom {
+	   background: rgb(255,0,0);
+	   position: absolute;
+	   width: 70%;
+	   height: 10%;
+	   margin-top: 90%;
+	   margin-left: 0%;
+	   font-size: 16px;
+	   font-weight: bold;
+	   color: white;
+	}
+	#go_button {
+		position: relative;
+		width: 90px;
+		height: 40px;
+		margin-left: 20%;
+	}
+	#posts1 {
+	   background: rgb(255,0,0);
+	   position: absolute;
+	   width: 30%;
+	   height: 90%;
+	   margin-top: 10%;
+	   margin-left: 70%;		
+	   vertical-align: middle;
+	}
+	input.bigcheck{
+		position: relative;
+		margin-left: 40px;
+		width: 50px;
+	}
+	#segmentation{
+		position: relative;
+		margin-left: 40px;
+	}
+	
